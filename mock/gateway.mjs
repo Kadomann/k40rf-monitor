@@ -68,7 +68,9 @@ const recordings = {
   '/recordings/heatingCircuits/hc1/roomtemperature': { unit: 'C', f: room, sum: false },
   '/recordings/dhwCircuits/dhw1/actualTemp': { unit: 'C', f: dhw, sum: false },
   '/recordings/heatSources/emon/total/outputProduced': { unit: 'kWh', f: heatKw, sum: true },
-  '/recordings/heatSources/emon/total/electricity': { unit: 'kWh', f: elecKw, sum: true },
+  // Wie beim Gateway des Nutzers: keine Gesamt-Strom-Aufzeichnung, nur die Einzelzähler.
+  '/recordings/heatSources/emon/total/compressor': { unit: 'kWh', f: t => elecKw(t) * 0.97, sum: true },
+  '/recordings/heatSources/emon/total/eheater': { unit: 'kWh', f: t => elecKw(t) * 0.03, sum: true },
 };
 
 function isoLocal(d) {
@@ -80,7 +82,8 @@ function recording(path, query) {
   const def = recordings[path];
   const rate = query.get('sampleRate');
   if (!['PT1H', 'P1D', 'P1M'].includes(rate)) return [400, { error: 'sampleRate required' }];
-  const start = query.get('startDate') ? new Date(`${query.get('startDate')}T00:00:00`) : new Date(now() - 60 * 86400_000);
+  const defaultDays = rate === 'P1M' ? 800 : 60;
+  const start = query.get('startDate') ? new Date(`${query.get('startDate')}T00:00:00`) : new Date(now() - defaultDays * 86400_000);
   if (rate === 'P1D') start.setHours(0);
   if (rate === 'P1M') start.setDate(1), start.setHours(0);
   start.setMinutes(0, 0, 0);

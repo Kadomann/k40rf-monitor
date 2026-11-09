@@ -158,6 +158,9 @@ input {
 figure { margin: 1.25rem 0 0; }
 figcaption { font-size: 0.875rem; color: var(--muted); margin-bottom: 0.5rem; }
 .chart { position: relative; height: clamp(14rem, 40vh, 22rem); }
+.figure-head { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; justify-content: space-between; align-items: center; }
+.ranges.small button { padding: 0.3rem 0.7rem; font-size: 0.8125rem; }
+.chart-empty { color: var(--muted); font-size: 0.9375rem; padding: 2rem 0; border-top: 1px solid var(--rule); }
 
 /* Einstellungen ------------------------------------------------------------ */
 dialog {

@@ -105,11 +105,24 @@
     </div>
     <figure id="fig-temp">
       <figcaption>Temperaturen in °C</figcaption>
+      <p class="chart-empty" hidden></p>
       <div class="chart"><canvas id="chart-temp"></canvas></div>
     </figure>
     <figure id="fig-energy">
-      <figcaption>Energie in kWh</figcaption>
+      <figcaption class="figure-head">
+        <span>Energie in kWh</span>
+        <span class="ranges small" id="energy-modes" role="group" aria-label="Anzeige"></span>
+      </figcaption>
+      <p class="chart-empty" hidden></p>
       <div class="chart"><canvas id="chart-energy"></canvas></div>
+    </figure>
+    <figure id="fig-cop">
+      <figcaption class="figure-head">
+        <span>Arbeitszahl (Wärme ÷ Strom)</span>
+        <span class="ranges small" id="cop-periods" role="group" aria-label="Zeitraster"></span>
+      </figcaption>
+      <p class="chart-empty" hidden></p>
+      <div class="chart"><canvas id="chart-cop"></canvas></div>
     </figure>
     <p class="status" id="history-status" aria-live="polite"></p>
   </section>

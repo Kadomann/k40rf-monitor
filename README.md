@@ -23,8 +23,16 @@ Du brauchst nichts zu installieren, GitHub baut die App auf seinen Rechnern.
    git remote add origin https://github.com/DEIN-NAME/k40-monitor.git
    git push -u origin main
    ```
-3. Im Repository auf **Actions** → **Build** → **Run workflow** klicken.
-4. Nach etwa 15–25 Minuten unten auf der Seite des Laufs unter **Artifacts**
+3. Für Android einmalig den Signaturschlüssel hinterlegen: **Settings** →
+   **Secrets and variables** → **Actions** → **New repository secret**, zwei
+   Einträge mit Name und Wert aus der Schlüsseldatei:
+   `ANDROID_KEYSTORE_PASSWORD` und `ANDROID_KEYSTORE_BASE64`.
+   Den Schlüssel immer gleich lassen, sonst lehnt Android Updates ab.
+   Eigenen Schlüssel erzeugen (mit Java):
+   `keytool -genkeypair -keystore k40.jks -storetype PKCS12 -alias k40monitor -keyalg RSA -keysize 2048 -validity 10000`,
+   dann den Inhalt von `k40.jks` base64-kodiert als Secret eintragen.
+4. Im Repository auf **Actions** → **Build** → **Run workflow** klicken.
+5. Nach etwa 15–25 Minuten unten auf der Seite des Laufs unter **Artifacts**
    herunterladen:
    - `k40-monitor-windows`: Installer (`.exe`, alternativ `.msi`)
    - `k40-monitor-android`: `.apk`
@@ -37,8 +45,9 @@ ist, zeigt Windows SmartScreen eine Warnung: „Weitere Informationen“ →
 
 **Android:** Die `.apk` aufs Handy kopieren und öffnen. Android fragt einmalig,
 ob die Installation aus dieser Quelle erlaubt ist. Die APK ist für 64-Bit-ARM
-gebaut, also für praktisch alle Handys der letzten Jahre. Es ist ein
-Debug-Build: voll funktionsfähig, nur etwas größer.
+gebaut, also für praktisch alle Handys der letzten Jahre. Spätere Versionen
+lassen sich einfach darüber installieren, solange der Signaturschlüssel gleich
+bleibt.
 
 **iOS:** iOS-Apps lassen sich nur auf einem Mac bauen. Mit Xcode, Node.js und
 Rust auf dem Mac:

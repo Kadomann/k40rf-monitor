@@ -166,7 +166,7 @@ async function runExplore() {
   try {
     const result = await explore(draft.host, draft.token,
       (n, total) => status('explore-status', `${n} von ${total} möglichen Werten geprüft …`));
-    cfg = { host: draft.host, token: draft.token, ...result };
+    cfg = { host: draft.host, token: draft.token, catalogVersion: k40.CATALOG_VERSION, ...result };
     saveConfig();
     const names = k40.catalog().tiles.filter(t => result.found.tiles.includes(t.key)).map(t => t.label);
     status('explore-status', '');
@@ -183,31 +183,26 @@ let range = localStorage.getItem('k40-range') ?? '30d';
 const charts = {};
 let timer = null;
 
-function startDashboard() {
+async function startDashboard() {
   $('setup').hidden = true;
   $('dashboard').hidden = false;
   $('product').textContent = cfg.product ?? 'Heizung';
-  buildRanges();
+  buildControls();
+  if (cfg.catalogVersion !== k40.CATALOG_VERSION) {
+    // Neue App-Version kennt neue Werte: einmal nachsehen, welche das Gateway liefert.
+    status('live-status', 'Prüfe, welche Werte dein Gateway liefert …');
+    try {
+      Object.assign(cfg, await explore(cfg.host, cfg.token, () => {}), { catalogVersion: k40.CATALOG_VERSION });
+      saveConfig();
+    } catch (err) {
+      status('live-status', describe(err), true);
+    }
+  }
   refreshLive();
   loadHistory();
+  loadCop();
   clearInterval(timer);
   timer = setInterval(() => { if (!document.hidden) refreshLive(); }, 60_000);
-}
-
-function buildRanges() {
-  $('ranges').replaceChildren(...Object.entries(k40.RANGES).map(([key, r]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = r.label;
-    b.setAttribute('aria-pressed', String(key === range));
-    b.onclick = () => {
-      range = key;
-      localStorage.setItem('k40-range', key);
-      buildRanges();
-      loadHistory();
-    };
-    return b;
-  }));
 }
 
 function readout(label, value, unit, { text = false, stale = false } = {}) {
@@ -254,6 +249,7 @@ async function refreshLive(retry = true) {
   if (tiles.length && errors.length === tiles.length) {
     if (errors[0]?.kind === 'unreachable' && retry && await rediscover()) {
       loadHistory();
+      loadCop();
       return refreshLive(false);
     }
     const hint = errors[0]?.kind === 'unauthorized' ? ' Unter „Einstellungen“ kannst du die App neu einrichten.' : '';
@@ -291,26 +287,48 @@ async function refreshLive(retry = true) {
 
 const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-async function drawChart(id, defs, { type, rate, query, cutoff, digits, unit }) {
-  const figure = $(`fig-${id}`);
-  if (!defs.length) { figure.hidden = true; return 0; }
-  figure.hidden = false;
+/** Holt Recordings parallel. Ergebnis: { key: points } für alle erfolgreichen Abrufe. */
+async function fetchRecordings(defs, query, rate, cutoff = -Infinity) {
   const results = await Promise.allSettled(defs.map(d => api(d.path, query)));
-  const ok = defs.map((d, i) => [d, results[i]]).filter(([, r]) => r.status === 'fulfilled');
-  const lists = ok.map(([, r]) => k40.recordingPoints(r.value, rate).filter(p => p.t >= cutoff));
-  const { times, columns } = k40.alignSeries(lists);
+  const byKey = {};
+  defs.forEach((d, i) => {
+    if (results[i].status === 'fulfilled') {
+      byKey[d.key] = k40.recordingPoints(results[i].value, rate).filter(p => p.t >= cutoff);
+    }
+  });
+  return byKey;
+}
 
+/**
+ * Zeichnet ein Diagramm. series: [{ label, color, points, order? }].
+ * overlay: Balken liegen übereinander statt nebeneinander (kleinere Reihe vorn).
+ */
+function renderChart(id, type, series, { rate, digits, unit, emptyText, overlay = false, footer = null }) {
+  const figure = $(`fig-${id}`);
+  const empty = figure.querySelector('.chart-empty');
+  const box = figure.querySelector('.chart');
   charts[id]?.destroy();
+  charts[id] = null;
+  const { times, columns } = k40.alignSeries(series.map(s => s.points));
+  const hasData = columns.some(c => c.some(v => v !== null));
+  empty.textContent = emptyText;
+  empty.hidden = hasData;
+  box.hidden = !hasData;
+  if (!hasData) return;
+
   const muted = cssVar('--muted'), rule = cssVar('--rule'), ink = cssVar('--ink');
+  const withUnit = v => `${k40.formatNumber(v, digits)}${unit ? ` ${unit}` : ''}`;
   charts[id] = new window.Chart($(`chart-${id}`), {
     type,
     data: {
       labels: times.map(t => k40.formatTime(t, rate)),
-      datasets: ok.map(([d], i) => ({
-        label: d.label,
+      datasets: series.map((s, i) => ({
+        label: s.label,
         data: columns[i],
-        borderColor: cssVar(d.color),
-        backgroundColor: cssVar(d.color),
+        order: s.order ?? i,
+        grouped: !overlay,
+        borderColor: cssVar(s.color),
+        backgroundColor: cssVar(s.color),
         borderWidth: type === 'line' ? 2 : 0,
         pointRadius: 0,
         tension: 0.25,
@@ -323,21 +341,127 @@ async function drawChart(id, defs, { type, rate, query, cutoff, digits, unit }) 
       animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'bottom', labels: { color: ink, boxWidth: 12, boxHeight: 12 } },
+        legend: { display: series.length > 1, position: 'bottom', labels: { color: ink, boxWidth: 12, boxHeight: 12 } },
         tooltip: {
           callbacks: {
-            label: c => c.parsed.y === null ? `${c.dataset.label}: –`
-              : `${c.dataset.label}: ${k40.formatNumber(c.parsed.y, digits)} ${unit}`,
+            label: c => `${c.dataset.label}: ${c.parsed.y === null ? '–' : withUnit(c.parsed.y)}`,
+            footer: footer ?? (() => ''),
           },
         },
       },
       scales: {
         x: { ticks: { color: muted, maxTicksLimit: 8, maxRotation: 0, autoSkip: true }, grid: { display: false } },
-        y: { ticks: { color: muted }, grid: { color: rule }, border: { display: false } },
+        y: { beginAtZero: type === 'bar', ticks: { color: muted }, grid: { color: rule }, border: { display: false } },
       },
     },
   });
-  return ok.length;
+}
+
+/** Umschalter aus Knöpfen; options: { key: Beschriftung } */
+function segmented(id, options, current, onPick) {
+  $(id).replaceChildren(...Object.entries(options).map(([key, label]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.setAttribute('aria-pressed', String(key === current));
+    b.onclick = () => onPick(key);
+    return b;
+  }));
+}
+
+let energyMode = localStorage.getItem('k40-energy') ?? 'both';
+let copPeriod = localStorage.getItem('k40-cop') ?? 'month';
+let energyData = null;   // { rate, byKey } des gewählten Zeitraums
+let copData = null;      // { heat, elec } je Monat
+
+function buildControls() {
+  const rangeLabels = Object.fromEntries(Object.entries(k40.RANGES).map(([k, r]) => [k, r.label]));
+  segmented('ranges', rangeLabels, range, key => {
+    range = key;
+    localStorage.setItem('k40-range', key);
+    buildControls();
+    loadHistory();
+  });
+  segmented('energy-modes', k40.ENERGY_MODES, energyMode, key => {
+    energyMode = key;
+    localStorage.setItem('k40-energy', key);
+    buildControls();
+    renderEnergy();
+  });
+  segmented('cop-periods', k40.COP_PERIODS, copPeriod, key => {
+    copPeriod = key;
+    localStorage.setItem('k40-cop', key);
+    buildControls();
+    renderCop();
+  });
+}
+
+const found = group => k40.catalog()[group].filter(d => cfg.found[group].includes(d.key));
+
+async function loadTemperatures(opts, run) {
+  const defs = found('temperatures');
+  $('fig-temp').hidden = !defs.length;
+  if (!defs.length) return;
+  const byKey = await fetchRecordings(defs, opts.query, opts.rate, opts.cutoff);
+  if (run !== historyRun) return;
+  renderChart('temp', 'line',
+    defs.filter(d => byKey[d.key]).map(d => ({ label: d.label, color: d.color, points: byKey[d.key] })),
+    { rate: opts.rate, digits: 1, unit: '°C', emptyText: `Das Gateway hat für „${k40.RANGES[range].label}“ keine Temperaturwerte geliefert.` });
+}
+
+async function loadEnergy(opts, run) {
+  const defs = found('energy');
+  $('fig-energy').hidden = !defs.length;
+  if (!defs.length) return;
+  const byKey = await fetchRecordings(defs, opts.query, opts.rate, opts.cutoff);
+  if (run !== historyRun) return;
+  energyData = { rate: opts.rate, byKey };
+  renderEnergy();
+}
+
+function copFooter(items) {
+  const heat = items.find(i => i.dataset.label === 'Wärme erzeugt')?.parsed.y;
+  const elec = items.find(i => i.dataset.label === 'Strom')?.parsed.y;
+  return heat && elec >= 0.05 ? `Arbeitszahl ${k40.formatNumber(heat / elec, 2)}` : '';
+}
+
+function renderEnergy() {
+  if (!energyData) return;
+  const { rate, byKey } = energyData;
+  const elec = k40.electricityPoints(byKey);
+  const canSwitch = Boolean(byKey.heat && elec);
+  $('energy-modes').hidden = !canSwitch;
+  const mode = canSwitch ? energyMode : 'both';
+  const series = [];
+  // Strom liegt vorn im Wärmebalken: sichtbar, welcher Teil der Wärme aus Strom stammt.
+  if (mode !== 'heat' && elec) series.push({ label: 'Strom', color: '--power', points: elec, order: 0 });
+  if (mode !== 'electricity' && byKey.heat) series.push({ label: 'Wärme erzeugt', color: '--hot', points: byKey.heat, order: 1 });
+  if (mode !== 'electricity' && byKey.burner) series.push({ label: 'Brennstoff', color: '--fuel', points: byKey.burner, order: 2 });
+  renderChart('energy', 'bar', series, {
+    rate, digits: 1, unit: 'kWh', overlay: true,
+    footer: mode === 'both' ? copFooter : null,
+    emptyText: `Das Gateway hat für „${k40.RANGES[range].label}“ keine Energiewerte geliefert.`,
+  });
+}
+
+async function loadCop() {
+  const defs = found('energy').filter(d => ['heat', 'compressor', 'eheater', 'electricity'].includes(d.key));
+  const byKey = defs.length ? await fetchRecordings(defs, { sampleRate: 'P1M' }, 'P1M') : {};
+  const elec = k40.electricityPoints(byKey);
+  copData = byKey.heat && elec ? { heat: byKey.heat, elec } : null;
+  $('fig-cop').hidden = !copData;
+  renderCop();
+}
+
+function renderCop() {
+  if (!copData) return;
+  const yearly = copPeriod === 'year';
+  const heat = yearly ? k40.sumByYear(copData.heat) : copData.heat;
+  const elec = yearly ? k40.sumByYear(copData.elec) : copData.elec;
+  renderChart('cop', 'bar', [{ label: 'Arbeitszahl', color: '--water', points: k40.copPoints(heat, elec) }], {
+    rate: yearly ? 'P1Y' : 'P1M', digits: 2, unit: '',
+    emptyText: 'Noch kein Zeitraum mit genug Daten für eine Arbeitszahl.',
+  });
 }
 
 let historyRun = 0;
@@ -349,15 +473,10 @@ async function loadHistory() {
     query: { sampleRate: rate, startDate: k40.startDate(days) },
     cutoff: Date.now() - days * 86400_000,
   };
-  const { temperatures, energy } = k40.catalog();
   status('history-status', 'Lade Verlauf …');
   try {
-    const counts = await Promise.all([
-      drawChart('temp', temperatures.filter(d => cfg.found.temperatures.includes(d.key)), { ...opts, type: 'line', digits: 1, unit: '°C' }),
-      drawChart('energy', energy.filter(d => cfg.found.energy.includes(d.key)), { ...opts, type: 'bar', digits: 1, unit: 'kWh' }),
-    ]);
-    if (run !== historyRun) return;
-    status('history-status', counts[0] + counts[1] ? '' : 'Dieses Gateway liefert keine Verlaufsdaten.');
+    await Promise.all([loadTemperatures(opts, run), loadEnergy(opts, run)]);
+    if (run === historyRun) status('history-status', '');
   } catch (err) {
     if (run === historyRun) status('history-status', describe(err), true);
   }
@@ -377,7 +496,7 @@ async function reExplore() {
   try {
     const result = await explore(cfg.host, cfg.token,
       (n, total) => status('settings-status', `${n} von ${total} geprüft …`));
-    Object.assign(cfg, result);
+    Object.assign(cfg, result, { catalogVersion: k40.CATALOG_VERSION });
     saveConfig();
     status('settings-status', 'Fertig.');
     startDashboard();
@@ -421,12 +540,12 @@ $('finish').onclick = startDashboard;
 for (const b of document.querySelectorAll('[data-back]')) b.onclick = () => showStep(b.dataset.back);
 for (const b of document.querySelectorAll('[data-copy]')) b.onclick = () => copy(b.dataset.copy);
 
-$('refresh').onclick = () => { refreshLive(); loadHistory(); };
+$('refresh').onclick = () => { refreshLive(); loadHistory(); loadCop(); };
 $('open-settings').onclick = openSettings;
 $('close-settings').onclick = () => $('settings').close();
 $('re-explore').onclick = reExplore;
 $('reset').onclick = reset;
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => cfg && loadHistory());
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (cfg) { loadHistory(); loadCop(); } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && cfg && !$('dashboard').hidden) refreshLive(); });
 
 if (cfg?.host && cfg?.token && cfg?.found) startDashboard();

@@ -80,3 +80,27 @@ test('Katalog: jeder Pfad steht in der Bosch-Spezifikation', () => {
     assert.ok(known.has(generic), `nicht in der Spezifikation: ${path}`);
   }
 });
+
+test('Strom = Verdichter + Heizstab, Ersatz Gesamt-Strom', () => {
+  const compressor = [{ t: 1, v: 2 }, { t: 2, v: 3 }, { t: 3, v: null }];
+  const eheater = [{ t: 1, v: 0.5 }, { t: 3, v: null }];
+  assert.deepEqual(k40.electricityPoints({ compressor, eheater }).map(p => p.v), [2.5, 3, null]);
+  const electricity = [{ t: 1, v: 9 }];
+  assert.deepEqual(k40.electricityPoints({ electricity }), electricity);
+  assert.equal(k40.electricityPoints({}), null);
+});
+
+test('Jahressummen aus Monaten', () => {
+  const m = (y, mo, v) => ({ t: new Date(y, mo, 1).getTime(), v });
+  const years = k40.sumByYear([m(2025, 10, 100), m(2025, 11, 200), m(2026, 0, 300), m(2026, 1, null)]);
+  assert.deepEqual(years.map(p => [new Date(p.t).getFullYear(), p.v]), [[2025, 300], [2026, 300]]);
+});
+
+test('Arbeitszahl je Zeitraum, ohne Ausreißer bei kaum Strom', () => {
+  const heat = [{ t: 1, v: 300 }, { t: 2, v: 5 }, { t: 3, v: 40 }];
+  const elec = [{ t: 1, v: 100 }, { t: 2, v: 0.2 }, { t: 3, v: null }];
+  assert.deepEqual(k40.copPoints(heat, elec).map(p => p.v), [3, null, null]);
+  // Jahres-Arbeitszahl aus Summen, nicht aus dem Mittel der Monatswerte
+  const y = k40.copPoints(k40.sumByYear([{ t: 0, v: 400 }, { t: 1, v: 100 }]), k40.sumByYear([{ t: 0, v: 100 }, { t: 1, v: 100 }]));
+  assert.equal(y[0].v, 2.5);
+});

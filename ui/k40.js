@@ -1,5 +1,8 @@
 // Reine Datenlogik ohne Tauri-Abhängigkeit. Wird in tests/ mit Node geprüft.
 
+// Erhöhen, wenn der Katalog neue Werte bekommt: Die App erkundet dann neu.
+export const CATALOG_VERSION = 2;
+
 export const HEATING_CIRCUITS = ['hc1', 'hc2', 'hc3', 'hc4'];
 export const DHW_CIRCUITS = ['dhw1', 'dhw2'];
 
@@ -114,6 +117,48 @@ export function alignSeries(pointLists) {
   return { times, columns };
 }
 
+/** Punktweise Summe mehrerer Reihen; null nur, wenn alle Teile fehlen. */
+export function sumPoints(...lists) {
+  const { times, columns } = alignSeries(lists);
+  return times.map((t, i) => {
+    const parts = columns.map(c => c[i]).filter(v => v !== null);
+    return { t, v: parts.length ? parts.reduce((a, b) => a + b, 0) : null };
+  });
+}
+
+/** Stromeinsatz: Verdichter + Heizstab, sonst Gesamt-Strom, sonst null. */
+export function electricityPoints(byKey) {
+  const parts = ['compressor', 'eheater'].filter(k => byKey[k]);
+  if (parts.length) return sumPoints(...parts.map(k => byKey[k]));
+  return byKey.electricity ?? null;
+}
+
+/** Monate oder Jahre zu Summen zusammenfassen (Jahr = 1. Januar). */
+export function sumByYear(points) {
+  const years = new Map();
+  for (const { t, v } of points) {
+    const year = new Date(t).getFullYear();
+    if (v !== null) years.set(year, (years.get(year) ?? 0) + v);
+    else if (!years.has(year)) years.set(year, null);
+  }
+  return [...years].sort((a, b) => a[0] - b[0]).map(([y, v]) => ({ t: new Date(y, 0, 1).getTime(), v }));
+}
+
+/**
+ * Arbeitszahl je Zeitraum = Wärme / Strom. Zeiträume mit weniger als
+ * `minInput` kWh Strom ergeben keinen sinnvollen Wert (z. B. Sommerpause).
+ */
+export function copPoints(heat, electricity, minInput = 1) {
+  const { times, columns: [h, e] } = alignSeries([heat, electricity]);
+  return times.map((t, i) => ({
+    t,
+    v: h[i] !== null && e[i] !== null && e[i] >= minInput ? h[i] / e[i] : null,
+  }));
+}
+
+export const ENERGY_MODES = { both: 'Wärme und Strom', heat: 'Wärme', electricity: 'Strom' };
+export const COP_PERIODS = { month: 'Monate', year: 'Jahre' };
+
 export function startDate(days, now = new Date()) {
   const d = new Date(now);
   d.setDate(d.getDate() - days);
@@ -125,6 +170,7 @@ export function formatTime(t, rate) {
   const d = new Date(t);
   if (rate === 'PT1H') return d.toLocaleString('de-DE', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
   if (rate === 'P1D') return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  if (rate === 'P1Y') return String(d.getFullYear());
   return d.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' });
 }
 
@@ -174,9 +220,13 @@ export function catalog() {
       key: `dhw-${id}`, label: `Warmwasser${circuitSuffix(id)}`, path: `/recordings/dhwCircuits/${id}/actualTemp`, color: '--water',
     })),
   ];
+  // Strom wird aus Verdichter + Heizstab gebildet (wie die Arbeitszahl),
+  // die Gesamt-Stromaufzeichnung ist nur Ersatz, falls diese fehlen.
   const energy = [
     { key: 'heat', label: 'Wärme erzeugt', path: '/recordings/heatSources/emon/total/outputProduced', color: '--hot' },
-    { key: 'electricity', label: 'Strom', path: '/recordings/heatSources/emon/total/electricity', color: '--power' },
+    { key: 'compressor', path: '/recordings/heatSources/emon/total/compressor' },
+    { key: 'eheater', path: '/recordings/heatSources/emon/total/eheater' },
+    { key: 'electricity', path: '/recordings/heatSources/emon/total/electricity' },
     { key: 'burner', label: 'Brennstoff', path: '/recordings/heatSources/emon/total/burner', color: '--fuel' },
   ];
   return { tiles, temperatures, energy };
