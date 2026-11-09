@@ -1,12 +1,13 @@
 # Baut die App für Windows und Android.
-# Start: GitHub → Actions → "Build" → "Run workflow".
-# Ergebnis: unten auf der Seite des Laufs unter "Artifacts" herunterladen.
+# Testlauf: GitHub → Actions → "Build" → "Run workflow"; Ergebnis unter "Artifacts".
+# Release: GitHub → Releases → "Draft a new release" mit Tag wie v0.2.0 → "Publish".
+#          Der Workflow baut dann und hängt Installer und APK an das Release an.
 name: Build
 
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -35,6 +36,10 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Versionsnummer aus dem Release übernehmen (v0.2.0 → 0.2.0)
+        if: github.event_name == 'release'
+        shell: bash
+        run: echo "TAURI_CONFIG={\"version\":\"${GITHUB_REF_NAME#v}\"}" >> "$GITHUB_ENV"
       - run: npx tauri build
       - uses: actions/upload-artifact@v4
         with:
@@ -69,6 +74,10 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Versionsnummer aus dem Release übernehmen (v0.2.0 → 0.2.0)
+        if: github.event_name == 'release'
+        shell: bash
+        run: echo "TAURI_CONFIG={\"version\":\"${GITHUB_REF_NAME#v}\"}" >> "$GITHUB_ENV"
       - name: Android-Projekt erzeugen
         run: |
           export NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
@@ -100,3 +109,22 @@ jobs:
         with:
           name: k40-monitor-android
           path: dist/k40-monitor.apk
+
+  release:
+    if: github.event_name == 'release'
+    needs: [windows, android]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Dateien an das Release anhängen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          find dist -type f
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber \
+            $(find dist -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.apk' \))
