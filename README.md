@@ -37,6 +37,16 @@ Du brauchst nichts zu installieren, GitHub baut die App auf seinen Rechnern.
    - `k40-monitor-windows`: Installer (`.exe`, alternativ `.msi`)
    - `k40-monitor-android`: `.apk`
 
+### Release veröffentlichen
+
+1. Im Repository rechts auf **Releases** → **Draft a new release**.
+2. **Choose a tag** → einen neuen Tag eintippen, z. B. `v0.2.0` →
+   **Create new tag**. Die Nummer muss bei jedem Release höher sein, sonst
+   erkennt Android das Update nicht. Format immer `v` + drei Zahlen.
+3. Titel und Beschreibung nach Belieben, dann **Publish release**.
+4. Der Workflow startet von selbst (unter **Actions** zu sehen) und hängt nach
+   15–25 Minuten Windows-Installer und APK an das Release an.
+
 ## 2. Installieren
 
 **Windows:** Installer ausführen. Weil die App nicht kostenpflichtig signiert
