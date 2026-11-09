@@ -61,7 +61,7 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
-      - run: sdkmanager "ndk;${NDK_VERSION}"
+      - run: sdkmanager "ndk;${NDK_VERSION}" "build-tools;35.0.0"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android
@@ -74,11 +74,29 @@ jobs:
           export NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
           npx tauri android init --ci
           npx tauri icon app-icon.png
-      - name: APK bauen (Debug-signiert, zum direkten Installieren)
+      - name: APK bauen (Release, optimiert)
         run: |
           export NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
-          npx tauri android build --debug --apk --target aarch64
+          npx tauri android build --apk --target aarch64
+      - name: APK signieren
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Secrets ANDROID_KEYSTORE_BASE64 und ANDROID_KEYSTORE_PASSWORD fehlen (siehe README)."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/k40.jks"
+          TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          UNSIGNED=$(find src-tauri/gen/android/app/build/outputs/apk -name '*release-unsigned.apk' | head -1)
+          "$TOOLS/zipalign" -p -f 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
+          mkdir -p dist
+          "$TOOLS/apksigner" sign --ks "$RUNNER_TEMP/k40.jks" --ks-key-alias k40monitor \
+            --ks-pass env:KEYSTORE_PASSWORD --out dist/k40-monitor.apk "$RUNNER_TEMP/aligned.apk"
+          "$TOOLS/apksigner" verify dist/k40-monitor.apk
+          ls -lh dist/k40-monitor.apk
       - uses: actions/upload-artifact@v4
         with:
           name: k40-monitor-android
-          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          path: dist/k40-monitor.apk
