@@ -1,0 +1,12 @@
+{
+  "id": "/heatingCircuits/hc1/currentRoomSetpoint",
+  "type": "floatValue",
+  "writeable": 0,
+  "value": 0.0,
+  "unitOfMeasure": "C",
+  "state": [
+    {
+      "off": 0.0
+    }
+  ]
+}

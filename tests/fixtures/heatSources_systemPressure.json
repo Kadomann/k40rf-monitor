@@ -1,0 +1,12 @@
+{
+  "id": "/heatSources/systemPressure",
+  "type": "floatValue",
+  "writeable": 0,
+  "value": 1.1,
+  "unitOfMeasure": "bar",
+  "state": [
+    {
+      "invalid": 255.0
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+Die *.json-Dateien in diesem Ordner stammen aus dem Projekt pyk40rf
+(https://github.com/luc-ass/pyk40rf), lizenziert unter Apache-2.0.
+Es sind echte, anonymisierte Antworten eines Bosch Connect-Key K 40 RF.
+
+spec-paths.txt enthält die Pfade aus der offiziellen OpenAPI-Beschreibung
+https://github.com/bosch-home-comfort/api-docs (Apache-2.0).

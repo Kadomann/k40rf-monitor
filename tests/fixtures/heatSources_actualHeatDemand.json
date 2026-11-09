@@ -1,0 +1,14 @@
+{
+  "id": "/heatSources/actualHeatDemand",
+  "type": "arrayData",
+  "writeable": 0,
+  "allowedValues": [
+    "",
+    "ch",
+    "dhw",
+    "frost"
+  ],
+  "values": [
+    ""
+  ]
+}

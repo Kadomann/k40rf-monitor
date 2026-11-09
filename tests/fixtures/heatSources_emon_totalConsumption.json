@@ -1,0 +1,23 @@
+{
+  "id": "/heatSources/emon/totalConsumption",
+  "type": "emonValue",
+  "writeable": 0,
+  "unit": "kWh",
+  "values": [
+    {
+      "outputProduced": 18312.99
+    },
+    {
+      "eheater": 0.15
+    },
+    {
+      "compressor": 5185.09
+    },
+    {
+      "ventilation": 300.316
+    },
+    {
+      "ventilationHeatRecovered": 2117.843
+    }
+  ]
+}

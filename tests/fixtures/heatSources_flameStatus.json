@@ -1,0 +1,10 @@
+{
+  "id": "/heatSources/flameStatus",
+  "type": "stringValue",
+  "writeable": 0,
+  "value": "off",
+  "allowedValues": [
+    "off",
+    "on"
+  ]
+}

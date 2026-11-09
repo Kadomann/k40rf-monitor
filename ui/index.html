@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>K40 Monitor</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="vendor/chart.umd.min.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+
+<!-- Einrichtung ---------------------------------------------------------- -->
+<main id="setup" class="setup" hidden>
+  <p class="progress" id="setup-progress"></p>
+
+  <section data-step="find">
+    <h1>Gateway finden</h1>
+    <p>Die App sucht im WLAN nach deinem Connect-Key K 40 RF. Dein Gerät muss im selben Netzwerk sein wie die Heizung.</p>
+    <p class="status" id="scan-status" aria-live="polite"></p>
+    <ul class="choices" id="found"></ul>
+    <button type="button" class="secondary" id="scan">Erneut suchen</button>
+
+    <label for="host">IP-Adresse von Hand eingeben</label>
+    <input id="host" inputmode="decimal" autocomplete="off" placeholder="z. B. 192.168.178.34">
+    <p class="hint">Steht in der Geräteliste deines Routers.</p>
+    <button type="button" id="host-next">Weiter</button>
+  </section>
+
+  <section data-step="credentials">
+    <h1>Zugangsdaten</h1>
+    <p>Login und Pass stehen auf dem Aufkleber am Gateway.</p>
+    <button type="button" class="secondary" id="scan-qr" hidden>QR-Code vom Aufkleber scannen</button>
+    <label for="login">Login</label>
+    <input id="login" inputmode="numeric" autocomplete="off" placeholder="z. B. 101234567">
+    <label for="pass">Pass</label>
+    <input id="pass" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xxxx-xxxx-xxxx-xxxx">
+    <p class="status" id="credentials-status" aria-live="polite"></p>
+    <button type="button" id="credentials-next">Weiter</button>
+
+    <details class="alt">
+      <summary>Ich habe schon einen Token</summary>
+      <p>Zum Beispiel von der Einrichtung auf einem anderen Gerät. So wird kein neuer Token auf dem Gateway verbraucht.</p>
+      <label for="existing-token">Token</label>
+      <input id="existing-token" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <p class="status" id="token-status" aria-live="polite"></p>
+      <button type="button" class="secondary" id="token-check">Token prüfen</button>
+    </details>
+    <button type="button" class="link" data-back="find">Zurück</button>
+  </section>
+
+  <section data-step="pair">
+    <h1>Gateway koppeln</h1>
+    <ol class="steps">
+      <li>Geh zum Gateway.</li>
+      <li>Drück die WLAN-Taste und die Funk-Taste gleichzeitig etwa eine Sekunde lang.</li>
+      <li>Die LEDs blinken kurz blau.</li>
+      <li>Tipp innerhalb von 5 Minuten auf „Koppeln“.</li>
+    </ol>
+    <p class="status" id="pair-status" aria-live="polite"></p>
+    <button type="button" id="pair">Koppeln</button>
+    <button type="button" class="link" data-back="credentials">Zurück</button>
+  </section>
+
+  <section data-step="explore">
+    <h1>Anlage erkunden</h1>
+    <p class="status" id="explore-status" aria-live="polite"></p>
+    <div id="explore-done" hidden>
+      <p id="explore-summary"></p>
+      <label for="token-backup">Dein Token</label>
+      <div class="copyrow">
+        <input id="token-backup" readonly>
+        <button type="button" class="secondary" data-copy="token-backup">Kopieren</button>
+      </div>
+      <p class="hint">Bewahr ihn sicher auf, etwa im Passwortmanager. Damit richtest du weitere Geräte ein, ohne einen neuen Token zu verbrauchen; der Speicher des Gateways ist begrenzt.</p>
+      <button type="button" id="finish">Zum Dashboard</button>
+    </div>
+  </section>
+</main>
+
+<!-- Dashboard ------------------------------------------------------------ -->
+<main id="dashboard" class="dashboard" hidden>
+  <header class="bar">
+    <div>
+      <h1 id="product">Heizung</h1>
+      <p class="status" id="live-status" aria-live="polite"></p>
+    </div>
+    <div class="actions">
+      <button type="button" class="secondary" id="refresh">Aktualisieren</button>
+      <button type="button" class="secondary" id="open-settings">Einstellungen</button>
+    </div>
+  </header>
+
+  <section class="hero" id="hero" hidden>
+    <span class="hero-value" id="hero-value">–</span>
+    <span class="hero-label">außen</span>
+  </section>
+
+  <section class="readouts" id="readouts" aria-label="Aktuelle Werte"></section>
+
+  <section class="history">
+    <div class="history-head">
+      <h2>Verlauf</h2>
+      <div class="ranges" id="ranges" role="group" aria-label="Zeitraum"></div>
+    </div>
+    <figure id="fig-temp">
+      <figcaption>Temperaturen in °C</figcaption>
+      <div class="chart"><canvas id="chart-temp"></canvas></div>
+    </figure>
+    <figure id="fig-energy">
+      <figcaption>Energie in kWh</figcaption>
+      <div class="chart"><canvas id="chart-energy"></canvas></div>
+    </figure>
+    <p class="status" id="history-status" aria-live="polite"></p>
+  </section>
+</main>
+
+<dialog id="settings">
+  <h2>Einstellungen</h2>
+  <dl>
+    <dt>Gateway</dt><dd id="settings-host"></dd>
+    <dt>Anlage</dt><dd id="settings-product"></dd>
+  </dl>
+  <label for="settings-token">Token</label>
+  <div class="copyrow">
+    <input id="settings-token" readonly>
+    <button type="button" class="secondary" data-copy="settings-token">Kopieren</button>
+  </div>
+  <p class="status" id="settings-status" aria-live="polite"></p>
+  <div class="actions">
+    <button type="button" class="secondary" id="re-explore">Anlage neu erkunden</button>
+    <button type="button" class="secondary danger" id="reset">Neu einrichten</button>
+    <button type="button" id="close-settings">Schließen</button>
+  </div>
+</dialog>
+
+</body>
+</html>

@@ -1,0 +1,175 @@
+:root {
+  color-scheme: light;
+  --bg: #f1f4f6;
+  --surface: #ffffff;
+  --ink: #173447;
+  --muted: #5b6f7c;
+  --rule: #d3dce2;
+  --focus: #1f6fb2;
+  --danger: #b3261e;
+  /* Datenfarben */
+  --cold: #2f74b5;
+  --hot: #e0702b;
+  --water: #1f8a80;
+  --power: #7c55b8;
+  --fuel: #a87b1e;
+  --room0: #173447;
+  --room1: #6b8597;
+  --room2: #93a7b5;
+  --room3: #b7c6d0;
+
+  --font: "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+  --pad: max(1rem, env(safe-area-inset-left));
+  font-family: var(--font);
+  font-size: 100%;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e1c25;
+    --surface: #152733;
+    --ink: #e4edf2;
+    --muted: #8fa5b3;
+    --rule: #263d4b;
+    --focus: #7ab4e6;
+    --danger: #f2a39c;
+    --cold: #6aa8e3;
+    --hot: #f08c4a;
+    --water: #45b8ab;
+    --power: #ad8be3;
+    --fuel: #d4a94a;
+    --room0: #e4edf2;
+    --room1: #a9bccb;
+    --room2: #7f97a8;
+    --room3: #5d7686;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: env(safe-area-inset-top) var(--pad) env(safe-area-inset-bottom);
+  background: var(--bg);
+}
+[hidden] { display: none !important; }
+
+h1, h2 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+h1 { font-size: 1.5rem; line-height: 1.25; }
+h2 { font-size: 1.125rem; }
+p { margin: 0.5rem 0 0; }
+
+/* Bedienelemente ----------------------------------------------------------- */
+button {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.65rem 1.1rem;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+  cursor: pointer;
+}
+button.secondary { background: transparent; color: var(--ink); border-color: var(--rule); }
+button.secondary:hover { border-color: var(--muted); }
+button.danger { color: var(--danger); }
+button.link { background: none; border: none; padding: 0.5rem 0; color: var(--muted); font-weight: 400; text-decoration: underline; }
+button:disabled { opacity: 0.5; cursor: progress; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+label { display: block; margin-top: 1.25rem; font-weight: 600; font-size: 0.9375rem; }
+input {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 0.5rem;
+}
+.hint { color: var(--muted); font-size: 0.875rem; }
+.status { color: var(--muted); font-size: 0.875rem; min-height: 1.3em; }
+.status.error { color: var(--danger); }
+
+/* Einrichtung -------------------------------------------------------------- */
+.setup { max-width: 32rem; margin: 0 auto; padding: 2.5rem 0 3rem; }
+.setup section > button:not(.link), #explore-done > button { margin-top: 1rem; }
+.setup section > button + button.link { display: block; margin-top: 1rem; }
+.progress { color: var(--muted); font-size: 0.875rem; margin: 0 0 0.25rem; }
+.choices { list-style: none; padding: 0; margin: 0.5rem 0 0; display: grid; gap: 0.5rem; }
+.choices button { width: 100%; text-align: left; font-variant-numeric: tabular-nums; }
+.steps { padding-left: 1.25rem; margin: 1rem 0 0; }
+.steps li { margin-top: 0.4rem; padding-left: 0.25rem; }
+.alt { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.alt summary { cursor: pointer; font-weight: 600; }
+.alt button { margin-top: 1rem; }
+.copyrow { display: flex; gap: 0.5rem; align-items: stretch; }
+.copyrow input { margin-top: 0.35rem; }
+.copyrow button { margin-top: 0.35rem; }
+
+/* Dashboard ---------------------------------------------------------------- */
+.dashboard { max-width: 72rem; margin: 0 auto; padding: 1.25rem 0 3rem; }
+.bar { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: flex-start; }
+.bar h1 { font-size: 1.125rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.hero { display: flex; align-items: baseline; gap: 0.75rem; margin: 1.5rem 0 0.5rem; }
+.hero-value {
+  font-size: clamp(4.5rem, 16vw, 8rem);
+  line-height: 0.95;
+  font-weight: 250;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cold);
+}
+.hero-label { font-size: 1.25rem; color: var(--muted); }
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  column-gap: 1.5rem;
+  margin-top: 1rem;
+}
+.readout { border-top: 1px solid var(--rule); padding: 0.75rem 0 1rem; }
+.readout-value {
+  display: block;
+  font-size: 1.875rem;
+  line-height: 1.2;
+  font-weight: 350;
+  font-variant-numeric: tabular-nums;
+}
+.readout-value small { font-size: 0.55em; color: var(--muted); margin-left: 0.2em; }
+.readout-value.text { font-size: 1.375rem; padding-top: 0.3rem; }
+.readout-label { display: block; color: var(--muted); font-size: 0.875rem; }
+.readout.stale .readout-value { color: var(--muted); }
+
+.history { margin-top: 2.5rem; }
+.history-head { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; }
+.ranges { display: inline-flex; border: 1px solid var(--rule); border-radius: 0.5rem; overflow: hidden; }
+.ranges button { border: none; border-radius: 0; background: transparent; color: var(--muted); padding: 0.45rem 0.9rem; font-weight: 500; }
+.ranges button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+figure { margin: 1.25rem 0 0; }
+figcaption { font-size: 0.875rem; color: var(--muted); margin-bottom: 0.5rem; }
+.chart { position: relative; height: clamp(14rem, 40vh, 22rem); }
+
+/* Einstellungen ------------------------------------------------------------ */
+dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 1.5rem;
+}
+dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 1rem 0 0; }
+dt { color: var(--muted); }
+dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+dialog .actions { margin-top: 1.5rem; }
