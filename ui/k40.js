@@ -107,6 +107,11 @@ export function recordingPoints(res, rate) {
   return points;
 }
 
+/** Enthält die Antwort überhaupt Messwerte? */
+export function hasBuckets(res) {
+  return (res.values ?? []).some(series => series.recording?.length);
+}
+
 /** Mehrere Reihen auf gemeinsame Zeitachse legen (fehlende Werte = null). */
 export function alignSeries(pointLists) {
   const times = [...new Set(pointLists.flatMap(ps => ps.map(p => p.t)))].sort((a, b) => a - b);

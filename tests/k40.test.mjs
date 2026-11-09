@@ -104,3 +104,9 @@ test('Arbeitszahl je Zeitraum, ohne Ausreißer bei kaum Strom', () => {
   const y = k40.copPoints(k40.sumByYear([{ t: 0, v: 400 }, { t: 1, v: 100 }]), k40.sumByYear([{ t: 0, v: 100 }, { t: 1, v: 100 }]));
   assert.equal(y[0].v, 2.5);
 });
+
+test('Leere Recording-Antwort wird erkannt', () => {
+  assert.equal(k40.hasBuckets({ values: [] }), false);
+  assert.equal(k40.hasBuckets({ values: [{ recording: [] }] }), false);
+  assert.equal(k40.hasBuckets(fixture('recordings_heatingCircuits_hc1_roomtemperature_sampleRate_P1D')), true);
+});

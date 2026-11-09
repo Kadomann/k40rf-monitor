@@ -289,7 +289,13 @@ const cssVar = name => getComputedStyle(document.documentElement).getPropertyVal
 
 /** Holt Recordings parallel. Ergebnis: { key: points } für alle erfolgreichen Abrufe. */
 async function fetchRecordings(defs, query, rate, cutoff = -Infinity) {
-  const results = await Promise.allSettled(defs.map(d => api(d.path, query)));
+  const results = await Promise.allSettled(defs.map(async d => {
+    const res = await api(d.path, query);
+    // Manche Gateways liefern z. B. Stundenwerte von Temperaturen nur ohne startDate.
+    // Dann ohne nachfragen; den Zeitraum schneidet cutoff unten selbst zu.
+    if (query.startDate && !k40.hasBuckets(res)) return api(d.path, { sampleRate: query.sampleRate });
+    return res;
+  }));
   const byKey = {};
   defs.forEach((d, i) => {
     if (results[i].status === 'fulfilled') {

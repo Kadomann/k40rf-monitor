@@ -82,6 +82,8 @@ function recording(path, query) {
   const def = recordings[path];
   const rate = query.get('sampleRate');
   if (!['PT1H', 'P1D', 'P1M'].includes(rate)) return [400, { error: 'sampleRate required' }];
+  // Wie beim Gateway des Nutzers: Temperatur-Stundenwerte mit startDate kommen leer zurück.
+  const emptyQuirk = rate === 'PT1H' && def.unit === 'C' && query.get('startDate');
   const defaultDays = rate === 'P1M' ? 800 : 60;
   const start = query.get('startDate') ? new Date(`${query.get('startDate')}T00:00:00`) : new Date(now() - defaultDays * 86400_000);
   if (rate === 'P1D') start.setHours(0);
@@ -103,7 +105,7 @@ function recording(path, query) {
     id: `${path}?sampleRate=${rate}`, type: 'yRecordingExtended', writeable: 0, unitOfMeasure: def.unit,
     recordedResource: { id: path.replace('/recordings', ''), uri: `https://192.0.2.10:9443${path.replace('/recordings', '')}` },
     recordingType: 'actual',
-    values: [{ startTime: isoLocal(start), sampleRate: rate, endTime: isoLocal(new Date()), recording: buckets }],
+    values: emptyQuirk ? [] : [{ startTime: isoLocal(start), sampleRate: rate, endTime: isoLocal(new Date()), recording: buckets }],
   }];
 }
 
